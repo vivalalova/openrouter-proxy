@@ -251,6 +251,7 @@ async function handleCompletions(
           logger.error(`流式處理錯誤: ${error}`);
           res.write(`data: {"error": "流式處理錯誤"}\n\n`);
         } finally {
+          logger.info(`流式請求完成`);
           res.end();
         }
       } else {
@@ -262,6 +263,7 @@ async function handleCompletions(
         } as any);
 
         res.json(response);
+        logger.info(`請求完成`);
       }
     } else if (req.originalUrl.includes('/completions')) {
       // 處理文本完成請求
@@ -291,6 +293,7 @@ async function handleCompletions(
           logger.error(`流式處理錯誤: ${error}`);
           res.write(`data: {"error": "流式處理錯誤"}\n\n`);
         } finally {
+          logger.info(`流式請求完成`);
           res.end();
         }
       } else {
@@ -302,6 +305,7 @@ async function handleCompletions(
         } as any);
 
         res.json(response);
+        logger.info(`請求完成`);
       }
     } else {
       // 未識別的端點，返回錯誤
@@ -455,6 +459,7 @@ async function proxyWithHTTP(
       if (buffer.length > 0) {
         res.write(buffer);
       }
+      logger.info(`流式請求完成`);
       res.end();
     });
 
@@ -491,5 +496,6 @@ async function proxyWithHTTP(
 
     // 設置狀態碼並發送主體
     res.status(response.status).send(response.data);
+    logger.info(`請求完成`);
   }
 }
