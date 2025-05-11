@@ -60,7 +60,7 @@ export class KeyManager {
       // 尋找下一個可用的金鑰
       for (let i = 0; i < this.keys.length; i++) {
         const key = this.keys[this.currentIndex];
-        logger.info(`使用金鑰 index: ${this.currentIndex}`);
+        logger.info(`檢查金鑰 index: ${this.currentIndex}`);
 
         this.currentIndex = (this.currentIndex + 1) % this.keys.length;
 
@@ -95,21 +95,32 @@ export class KeyManager {
         }
       }
 
-      // 所有金鑰都被禁用
+      // 所有金鑰都被禁用，尋找最早可用的金鑰並等待
       const soonestAvailable = Array.from(this.disabledUntil.values()).reduce(
         (earliest, current) => current < earliest ? current : earliest,
         new Date(8640000000000000) // 遠未來的日期
       );
 
-      const waitSeconds = (soonestAvailable.getTime() - new Date().getTime()) / 1000;
-      logger.error(
-        `所有 API 金鑰目前皆已禁用。下一個金鑰將在 ${waitSeconds.toFixed(2)} 秒後可用。`
+      const waitMs = Math.max(0, soonestAvailable.getTime() - new Date().getTime());
+      const waitSeconds = waitMs / 1000;
+
+      logger.warn(
+        `所有 API 金鑰目前皆已禁用。等待 ${waitSeconds.toFixed(2)} 秒直到下一個金鑰可用。`
       );
-      throw new Error(
-        `所有 API 金鑰目前皆已禁用，因為已達到速率限制。請稍後再試。`
-      );
+
+      // 釋放鎖以允許其他請求等待
+      if (releaseLock) {
+        this.lockPromise = null;
+        releaseLock();
+      }
+
+      // 等待直到最早的金鑰可用
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+
+      // 再次嘗試獲取金鑰（遞迴調用）
+      return this.getNextKey(cooldownSeconds);
     } finally {
-      // 釋放鎖
+      // 確保鎖被釋放
       if (releaseLock) {
         this.lockPromise = null;
         releaseLock();

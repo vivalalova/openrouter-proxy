@@ -104,9 +104,23 @@ router.all('/api/v1/*', async (req: Request, res: Response) => {
   // 取得 API 金鑰
   let apiKey: string;
   try {
-    apiKey = isPublic ? '' : await keyManager.getNextKey();
-    if (!isPublic && !apiKey) {
-      return res.status(503).json({ error: '目前沒有可用的 API 金鑰' });
+    if (isPublic) {
+      apiKey = '';
+    } else {
+      logger.info(`準備取得 API 金鑰處理請求 ${req.url}`);
+      const requestStartTime = Date.now();
+      apiKey = await keyManager.getNextKey();
+      const requestEndTime = Date.now();
+      const waitTime = requestEndTime - requestStartTime;
+
+      if (waitTime > 1000) { // 如果等待時間超過1秒，表示可能有等待金鑰冷卻
+        logger.info(`請求 ${req.url} 等待了 ${waitTime/1000} 秒直到有可用金鑰`);
+      }
+
+      if (!apiKey) {
+        return res.status(503).json({ error: '目前沒有可用的 API 金鑰' });
+      }
+      logger.info(`成功取得 API 金鑰，繼續處理請求 ${req.url}`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : '無可用金鑰';
@@ -247,11 +261,11 @@ async function handleCompletions(
             }
           }
           res.write('data: [DONE]\n\n');
+          logger.info(`流式請求完成: ${req.url}`);
         } catch (error) {
           logger.error(`流式處理錯誤: ${error}`);
           res.write(`data: {"error": "流式處理錯誤"}\n\n`);
         } finally {
-          logger.info(`流式請求完成`);
           res.end();
         }
       } else {
@@ -263,7 +277,7 @@ async function handleCompletions(
         } as any);
 
         res.json(response);
-        logger.info(`請求完成`);
+        logger.info(`請求完成: ${req.url}`);
       }
     } else if (req.originalUrl.includes('/completions')) {
       // 處理文本完成請求
@@ -293,7 +307,6 @@ async function handleCompletions(
           logger.error(`流式處理錯誤: ${error}`);
           res.write(`data: {"error": "流式處理錯誤"}\n\n`);
         } finally {
-          logger.info(`流式請求完成`);
           res.end();
         }
       } else {
@@ -305,7 +318,7 @@ async function handleCompletions(
         } as any);
 
         res.json(response);
-        logger.info(`請求完成`);
+        logger.info(`請求完成: ${req.url}`);
       }
     } else {
       // 未識別的端點，返回錯誤
@@ -459,7 +472,7 @@ async function proxyWithHTTP(
       if (buffer.length > 0) {
         res.write(buffer);
       }
-      logger.info(`流式請求完成`);
+      logger.info(`流式請求完成: ${req.url}`);
       res.end();
     });
 
@@ -496,6 +509,6 @@ async function proxyWithHTTP(
 
     // 設置狀態碼並發送主體
     res.status(response.status).send(response.data);
-    logger.info(`請求完成`);
+    logger.info(`請求完成: ${req.url}`);
   }
 }
