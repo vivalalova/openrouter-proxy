@@ -120,8 +120,23 @@ export class KeyManager {
 
       if (resetTimeMs) {
         try {
-          // 將毫秒轉換為秒並創建日期
-          const resetDatetime = new Date(resetTimeMs);
+          // 檢查重設時間格式
+          let resetDatetime: Date;
+
+          // 測試是否是有效的時間戳（毫秒）
+          if (resetTimeMs > Date.now()) {
+            // 如果值大於當前時間戳，則直接使用
+            resetDatetime = new Date(resetTimeMs);
+            logger.info(`使用毫秒時間戳: ${resetTimeMs}`);
+          } else if (resetTimeMs > Date.now() / 1000) {
+            // 如果值大於當前秒時間戳但小於毫秒時間戳，認為是毫秒
+            resetDatetime = new Date(resetTimeMs);
+            logger.info(`使用毫秒時間戳: ${resetTimeMs}`);
+          } else {
+            // 假設是秒時間戳
+            resetDatetime = new Date(resetTimeMs * 1000);
+            logger.info(`使用秒時間戳，轉換為毫秒: ${resetTimeMs * 1000}`);
+          }
 
           // 確保重設時間在未來
           if (resetDatetime > new Date()) {

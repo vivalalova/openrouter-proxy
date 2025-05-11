@@ -70,15 +70,38 @@ export function checkRateLimit(body: string | Buffer): [boolean, number | undefi
     // 檢查是否有速率限制錯誤
     if (
       bodyObj.error &&
-      typeof bodyObj.error === 'object' &&
-      bodyObj.error.type === 'rate_limit_exceeded'
+      (
+        // 檢查明確的速率限制錯誤類型
+        (typeof bodyObj.error === 'object' &&
+         (bodyObj.error.type === 'rate_limit_exceeded' ||
+          bodyObj.error.code === 'rate_limit_exceeded')) ||
+        // 檢查錯誤消息中是否包含速率限制相關的關鍵詞
+        (typeof bodyObj.error === 'string' &&
+         (bodyObj.error.includes('rate limit') ||
+          bodyObj.error.includes('rate_limit') ||
+          bodyObj.error.includes('too many requests')))
+      )
     ) {
       logger.warn('發現速率限制錯誤');
 
       // 嘗試從錯誤中提取重置時間
-      const resetTimeMs = bodyObj.error.headers?.['x-ratelimit-reset-requests'] ||
-                           bodyObj.error.headers?.['x-ratelimit-reset-tokens'] ||
-                           undefined;
+      let resetTimeMs;
+
+      // 檢查 headers 屬性
+      if (bodyObj.error && bodyObj.error.headers) {
+        resetTimeMs = bodyObj.error.headers['x-ratelimit-reset-requests'] ||
+                      bodyObj.error.headers['x-ratelimit-reset-tokens'] ||
+                      bodyObj.error.headers['x-ratelimit-reset'] ||
+                      undefined;
+      }
+
+      // 檢查頂層 headers
+      if (!resetTimeMs && bodyObj.headers) {
+        resetTimeMs = bodyObj.headers['x-ratelimit-reset-requests'] ||
+                      bodyObj.headers['x-ratelimit-reset-tokens'] ||
+                      bodyObj.headers['x-ratelimit-reset'] ||
+                      undefined;
+      }
 
       if (resetTimeMs) {
         return [true, parseInt(resetTimeMs, 10)];

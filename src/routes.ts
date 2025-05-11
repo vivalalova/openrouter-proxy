@@ -238,16 +238,21 @@ async function handleCompletions(
         res.setHeader('Connection', 'keep-alive');
 
         // 流式傳輸響應
-        for await (const chunk of stream as any) {
-          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-          // 確保立即發送數據
-          if (res.socket?.writableCorked) {
-            res.socket.uncork();
+        try {
+          for await (const chunk of stream as any) {
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            // 確保立即發送數據
+            if (res.socket?.writableCorked) {
+              res.socket.uncork();
+            }
           }
+          res.write('data: [DONE]\n\n');
+        } catch (error) {
+          logger.error(`流式處理錯誤: ${error}`);
+          res.write(`data: {"error": "流式處理錯誤"}\n\n`);
+        } finally {
+          res.end();
         }
-
-        res.write('data: [DONE]\n\n');
-        res.end();
       } else {
         // 非流式請求
         const response = await openai.chat.completions.create({
@@ -273,16 +278,21 @@ async function handleCompletions(
         res.setHeader('Connection', 'keep-alive');
 
         // 流式傳輸響應
-        for await (const chunk of stream as any) {
-          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-          // 確保立即發送數據
-          if (res.socket?.writableCorked) {
-            res.socket.uncork();
+        try {
+          for await (const chunk of stream as any) {
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            // 確保立即發送數據
+            if (res.socket?.writableCorked) {
+              res.socket.uncork();
+            }
           }
+          res.write('data: [DONE]\n\n');
+        } catch (error) {
+          logger.error(`流式處理錯誤: ${error}`);
+          res.write(`data: {"error": "流式處理錯誤"}\n\n`);
+        } finally {
+          res.end();
         }
-
-        res.write('data: [DONE]\n\n');
-        res.end();
       } else {
         // 非流式請求
         const response = await openai.completions.create({
@@ -416,6 +426,15 @@ async function proxyWithHTTP(
     response.data.on('data', (chunk: Buffer) => {
       const chunkStr = chunk.toString();
       buffer += chunkStr;
+
+      // 檢查 SSE 註釋行（以冒號開頭）
+      if (chunkStr.trimStart().startsWith(':')) {
+        // 這是一個 SSE 註釋行，例如 ": OPENROUTER PROCESSING"
+        logger.debug(`收到 SSE 註釋: ${chunkStr.trim()}`);
+        // 直接轉發註釋
+        res.write(chunkStr);
+        return;
+      }
 
       // 檢查完整的 SSE 消息
       let idx;
