@@ -42,8 +42,9 @@ export class KeyManager {
 
   /**
    * 取得下一個可用的 API 金鑰，使用循環選擇法
+   * @param cooldownSeconds 金鑰使用後的冷卻時間（秒）
    */
-  async getNextKey(): Promise<string> {
+  async getNextKey(cooldownSeconds: number = 0): Promise<string> {
     // 等待鎖釋放
     while (this.lockPromise) {
       await this.lockPromise;
@@ -59,6 +60,8 @@ export class KeyManager {
       // 尋找下一個可用的金鑰
       for (let i = 0; i < this.keys.length; i++) {
         const key = this.keys[this.currentIndex];
+        logger.info(`使用金鑰 index: ${this.currentIndex}`);
+
         this.currentIndex = (this.currentIndex + 1) % this.keys.length;
 
         // 檢查金鑰是否被禁用
@@ -68,10 +71,26 @@ export class KeyManager {
             // 金鑰冷卻期已過
             this.disabledUntil.delete(key);
             logger.info(`API 金鑰 ${maskKey(key)} 已重新啟用。`);
+
+            // 設定冷卻時間
+            if (cooldownSeconds > 0) {
+              const disableUntil = new Date();
+              disableUntil.setSeconds(disableUntil.getSeconds() + cooldownSeconds);
+              this.disabledUntil.set(key, disableUntil);
+              logger.info(`API 金鑰 ${maskKey(key)} 已被禁用 ${cooldownSeconds} 秒。`);
+            }
+
             return key;
           }
         } else {
-          // 金鑰未被禁用
+          // 設定冷卻時間
+          if (cooldownSeconds > 0) {
+            const disableUntil = new Date();
+            disableUntil.setSeconds(disableUntil.getSeconds() + cooldownSeconds);
+            this.disabledUntil.set(key, disableUntil);
+            logger.info(`API 金鑰 ${maskKey(key)} 已被禁用 ${cooldownSeconds} 秒。`);
+          }
+
           return key;
         }
       }
