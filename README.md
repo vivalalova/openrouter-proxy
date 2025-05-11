@@ -1,90 +1,103 @@
-# OpenRouter API 代理
+# OpenRouter 代理伺服器
 
-這是一個 OpenRouter API 的代理服務，用於輪換 API 金鑰以繞過速率限制。每個金鑰每分鐘可以使用一次，如果所有金鑰都在冷卻中，請求會等待直到有金鑰可用。
+這是一個用於 OpenRouter API 請求的代理伺服器，可以自動輪換 API 金鑰以繞過速率限制，提升大型語言模型 API 的可用性和穩定性。
 
 ## 功能特點
 
-- 輪換 API 金鑰處理請求
-- 金鑰冷卻和速率限制處理
-- 支援 OpenAI 相容端點
-- 支援流式回應
+- 自動輪換多個 OpenRouter API 金鑰，有效繞過單一金鑰的速率限制
+- 內建速率限制管理機制，智能處理超限狀況
+- 支援所有 OpenRouter API 端點
+- 透明轉發所有請求參數和回應
+- 支援 HTTP 代理配置
+- 提供簡單的存取控制
 - 可選擇只顯示免費模型
-- 健康檢查端點
-- 支援 HTTP 代理
+- 為 Google 模型提供特殊延遲處理
 
 ## 安裝
 
-1. 克隆此儲存庫
-2. 安裝依賴
-   ```bash
-   npm install
-   ```
-3. 複製範例配置文件
-   ```bash
-   cp config.example.yml config.yml
-   ```
-4. 根據需要編輯 `config.yml` 文件，至少添加您的 OpenRouter API 金鑰
+```bash
+# 安裝依賴
+npm install
+
+# 編譯 TypeScript
+npm run build
+```
 
 ## 配置
 
-配置文件 `config.yml` 中可以設定以下選項：
-
-- `server`: 服務器配置
-  - `host`: 綁定地址 (預設 "0.0.0.0")
-  - `port`: 監聽端口 (預設 8080)
-  - `log_level`: 日誌級別 (debug, info, warn, error)
-
-- `openrouter`: OpenRouter API 配置
-  - `base_url`: API 基本 URL (預設 "https://openrouter.ai/api/v1")
-  - `keys`: API 金鑰列表 (按順序輪換使用)
-  - `rate_limit_cooldown`: 速率限制冷卻時間 (秒)
-  - `public_endpoints`: 不需要授權的公共端點
-  - `free_only`: 是否只顯示免費模型
-
-- `request_proxy`: HTTP 代理配置 (用於連接 OpenRouter API)
-  - `enabled`: 是否啟用代理
-  - `url`: 代理 URL
-
-- `access`: 本地服務器訪問控制
-  - `key`: 訪問金鑰 (留空則不需要驗證)
-
-## 使用方法
-
-### 開發模式
+1. 複製範例配置檔：
 
 ```bash
-npm run dev
+cp config.example.yml config.yml
 ```
 
-### 構建和運行
+2. 編輯 `config.yml`，設定您的 OpenRouter API 金鑰和其他選項：
+
+```yaml
+server:
+  host: "0.0.0.0"  # 伺服器監聽的主機位址
+  port: 8080       # 伺服器監聽的連接埠
+  log_level: "info" # 日誌級別: debug, info, warn, error
+
+openrouter:
+  base_url: "https://openrouter.ai/api/v1"
+  keys:
+    - "your_openrouter_key_1"
+    - "your_openrouter_key_2"
+  rate_limit_cooldown: 60
+  free_only: true
+  google_rate_delay: 0
+
+request_proxy:
+  enabled: false
+  url: ""
+
+access:
+  key: ""  # 設定存取金鑰，留空則不需要驗證
+```
+
+## 運行
 
 ```bash
-npm run build
+# 開發模式（自動重載）
+npm run dev
+
+# 生產模式
 npm start
 ```
 
-## API 端點
+啟動後，伺服器將在配置的主機和連接埠上監聽，例如：`http://localhost:8080/api/v1`
 
-使用方式與 OpenRouter API 相同，只需將請求發送到本地代理服務器：
+## API 使用
+
+使用本代理的方式與直接使用 OpenRouter API 相同，只需將請求 URL 從 `https://openrouter.ai/api/v1` 更改為您的代理伺服器 URL。
+
+### 主要端點
+
+- `/api/v1/chat/completions` - 聊天完成接口
+- `/api/v1/completions` - 文本完成接口
+- `/api/v1/models` - 模型列表接口
+- `/health` - 健康檢查端點
+
+### 存取驗證
+
+如果您在配置中設定了存取金鑰，所有請求都需要在 HTTP 標頭中包含此金鑰：
 
 ```
-http://localhost:8080/api/v1/chat/completions
+X-Access-Key: your_access_key
 ```
 
-如果在配置中設置了訪問金鑰，請在 HTTP 請求頭中添加：
+## 開發
 
-```
-Authorization: Bearer your_access_key
-```
-
-## 健康檢查
-
-健康檢查端點：
-
-```
-http://localhost:8080/health
+```bash
+# 運行測試
+npm test
 ```
 
-## 許可證
+## 授權
 
 MIT
+
+## 貢獻
+
+歡迎提交問題報告和拉取請求！
