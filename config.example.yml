@@ -1,0 +1,39 @@
+# OpenRouter 代理伺服器配置範例
+# 請複製此檔案為 config.yml 並依需求進行設定
+
+server:
+  host: "0.0.0.0"  # 伺服器監聽的主機位址
+  port: 8080       # 伺服器監聽的連接埠
+  log_level: "info" # 日誌級別: debug, info, warn, error
+
+openrouter:
+  # OpenRouter API 基礎 URL
+  base_url: "https://openrouter.ai/api/v1"
+
+  # 無需驗證的公共端點
+  public_endpoints:
+    - "/api/v1/models"
+
+  # OpenRouter API 金鑰列表 (按照順序輪換使用)
+  keys:
+    - "your_openrouter_key_1"
+    - "your_openrouter_key_2"
+
+  # API 金鑰冷卻時間 (秒)，超過速率限制後的等待時間
+  rate_limit_cooldown: 60
+
+  # 只回傳免費模型
+  free_only: true
+
+  # Google 模型特殊速率限制延遲 (秒)
+  google_rate_delay: 0
+
+# HTTP 代理配置 (若需要連接 OpenRouter 時使用代理)
+request_proxy:
+  enabled: false
+  url: ""   # 例如: "http://your-proxy-server:port"
+
+# 本地伺服器存取控制
+access:
+  # 存取金鑰，留空則不需要驗證
+  key: ""
